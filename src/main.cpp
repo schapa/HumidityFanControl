@@ -30,7 +30,6 @@ int main(int argc, char* argv[]) {
 					BSP.startSensorAck();
 					if (event.data.intptr > shutdownTout)
 						BSP.shutdown();
-					BSP.screenDraw();
 				}
 				break;
 			case EVENT_DHT11:

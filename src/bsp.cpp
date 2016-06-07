@@ -26,12 +26,14 @@ static struct dht11 {
 
 static void initRCC(void);
 static void initGPIO_Power(void);
+static void initGPIO_Fan(void);
 static void initGPIO_DHT11(void);
 static void initGPIO_SPI(void);
 
 static void init_DHT11(void);
 static void init_SPI(void);
 static void init_TIM(void);
+static void init_PWM(void);
 static void dht11_process(dht11 *item);
 
 BoardSupportPackage &BSP = BoardSupportPackage::getInstance();
@@ -41,9 +43,11 @@ bool BoardSupportPackage::init() {
 	SysTick_Config(SystemCoreClock/BSP_TICKS_PER_SECOND);
 	initRCC();
 	initGPIO_Power();
+	initGPIO_Fan();
 	init_DHT11();
 	init_SPI();
 	init_TIM();
+	init_PWM();
  	screenInit();
 
 	result = true;
@@ -81,6 +85,25 @@ void BoardSupportPackage::startSensorAck(void) {
 
 void BoardSupportPackage::shutdown(void) {
 	GPIO_ResetBits(GPIOA, GPIO_Pin_1);
+}
+
+void BoardSupportPackage::setFanState(const bool &val) {
+	if (val)
+		GPIO_SetBits(GPIOA, GPIO_Pin_1);
+	else
+		GPIO_ResetBits(GPIOA, GPIO_Pin_1);
+}
+
+void BoardSupportPackage::setFanSpeed(const uint8_t& val) {
+	TIM_OCInitTypeDef pwm = {
+			TIM_OCMode_PWM1,
+			TIM_OutputState_Enable,
+			0,
+			val,
+			TIM_OCPolarity_High,
+			0, 0, 0
+	};
+	TIM_OC1Init(TIM14, &pwm);
 }
 
 void BoardSupportPackage::lcd_reset(bool val) {
@@ -164,6 +187,31 @@ static void initGPIO_Power(void) {
 	GPIO_Init(GPIOA, &iface);
 	GPIO_SetBits(GPIOA, GPIO_Pin_1);
 }
+
+static void initGPIO_Fan(void) {
+	GPIO_InitTypeDef iface = {
+			GPIO_Pin_0,
+			GPIO_Mode_OUT,
+			GPIO_Speed_Level_1,
+			GPIO_OType_PP,
+			GPIO_PuPd_NOPULL
+	};
+	GPIO_Init(GPIOA, &iface);
+
+	iface.GPIO_Pin = GPIO_Pin_4;
+	iface.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_Init(GPIOA, &iface);
+
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource4, GPIO_AF_4); // PWM T14_CH1
+
+	iface.GPIO_Pin = GPIO_Pin_6;
+	iface.GPIO_Mode = GPIO_Mode_AF;
+	iface.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_Init(GPIOA, &iface);
+
+	GPIO_SetBits(GPIOA, GPIO_Pin_0);
+}
+
 static void initGPIO_DHT11(void) {
 	GPIO_InitTypeDef iface = {
 			GPIO_Pin_2 | GPIO_Pin_3,
@@ -256,6 +304,20 @@ static void init_TIM(void) {
 
 	TIM_TimeBaseInit(TIM14, &iface);
 	TIM_Cmd(TIM14, ENABLE);
+}
+
+static void init_PWM(void) {
+	TIM_OCInitTypeDef pwm = {
+			TIM_OCMode_PWM1,
+			TIM_OutputState_Enable,
+			0,
+			30,
+			TIM_OCPolarity_High,
+			0, 0, 0
+	};
+	TIM_CtrlPWMOutputs(TIM14, ENABLE);
+	TIM_OC1Init(TIM14, &pwm);
+	TIM_CCxCmd(TIM14, TIM_Channel_1, TIM_CCx_Enable);
 }
 
 static void dht11_process(dht11 *item) {

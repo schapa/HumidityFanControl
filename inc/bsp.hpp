@@ -31,6 +31,9 @@ public:
 	void startSensorAck(void);
 	void shutdown(void);
 
+	void setFanState(const bool&);
+	void setFanSpeed(const uint8_t&);
+
 	virtual void lcd_reset(bool);
 	virtual void lcd_cs(bool);
 	virtual void lcd_cmd(uint8_t);
